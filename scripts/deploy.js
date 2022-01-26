@@ -18,6 +18,21 @@ async function main() {
   const life = await Life.deploy();
   await life.deployed();
   console.log("Life deployed to:", life.address);
+
+  // deploy TimeLock.sol
+  const TimeLock = await hre.ethers.getContractFactory("TimeLock");
+  const timeLock = await TimeLock.deploy();
+  await timeLock.deployed();
+  console.log("TimeLock deployed to:", timeLock.address);
+
+  // deploy GovernorAlpha.sol
+  const GovernorAlpha = await hre.ethers.getContractFactory("DEVITAGovernor");
+  const governorAlpha = await GovernorAlpha.deploy(
+    timeLock.address,
+    life.address
+  );
+  await governorAlpha.deployed();
+  console.log("DEVITAGovernor deployed to:", governorAlpha.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
