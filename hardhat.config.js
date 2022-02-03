@@ -1,5 +1,6 @@
 require("@nomiclabs/hardhat-waffle");
 require("@nomiclabs/hardhat-etherscan");
+require("@openzeppelin/hardhat-upgrades");
 
 const data = require("./secrets.json");
 const INFURA_API_KEY = data.INFURA_API_KEY;

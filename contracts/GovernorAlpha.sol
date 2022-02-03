@@ -172,24 +172,19 @@ contract DEVITAGovernor is GovernorStorage, GovernorEvents {
   uint256 public constant MAX_VOTING_DELAY = 40320; // About 1 week
 
   /// @notice Percentage of votes needed for a proposal to pass multiplied by 100 (to accomodate 2 decimal point) i.e. 125 = 1.25%
-  uint256 public quorumPercent = 400; // 4% by default
+  uint256 public quorumPercent;
 
   /// @notice Percentage of votes needed for a proposal to be approved
-  uint256 public approvePercent = 100; // 1% voting power
+  uint256 public approvePercent;
 
   /// @notice The delay before voting on a proposal may take place, once proposed, in blocks
-  uint256 public votingDelay = 1; // 1 block
+  uint256 public votingDelay;
 
   /// @notice The duration of voting on a proposal, in blocks
-  uint256 public votingPeriod = 17280; // ~3 days in blocks (assuming 15s blocks)
+  uint256 public votingPeriod;
 
   /// @notice The duration of the approval phase of a proposal
-  uint256 public approvalPeriod = 5760; // ~1 day in blocks (assuming 15s blocks)
-
-  /// @notice The maximum number of actions that can be included in a proposal
-  function proposalMaxOperations() public pure returns (uint256) {
-    return 10;
-  } // 10 actions
+  uint256 public approvalPeriod;
 
   /// @notice The address of the Timelock
   TimelockInterface public timelock;
@@ -215,23 +210,6 @@ contract DEVITAGovernor is GovernorStorage, GovernorEvents {
   /// @notice The latest proposal for each proposer
   mapping(address => uint256) public latestProposalIds;
 
-  /// @notice The number of votes in support of a proposal required in order for a quorum to be reached and for a vote to succeed
-  function quorumVotes() public view returns (uint256) {
-    uint256 minimumVotes = SafeMath.div(life.currentSupply(), 10000); // Quorum requirement is always a multiple of 0.01% of LIFE supply
-    return SafeMath.mul(minimumVotes, quorumPercent);
-  }
-
-  /// @notice The number of votes required in order for a voter to approve a proposal
-  function approveVotes() public view returns (uint256) {
-    uint256 minimumVotes = SafeMath.div(life.currentSupply(), 10000); // Approval requirement is always a multiple of 0.01% of LIFE supply
-    return SafeMath.mul(minimumVotes, approvePercent);
-  }
-
-  /// @notice The number of Tokens required in order for a voter to create a proposal
-  function createVotes() public pure returns (uint256) {
-    return 9000;
-  }
-
   /// @notice The EIP-712 typehash for the contract's domain
   bytes32 public constant DOMAIN_TYPEHASH =
     keccak256(
@@ -242,11 +220,48 @@ contract DEVITAGovernor is GovernorStorage, GovernorEvents {
   bytes32 public constant BALLOT_TYPEHASH =
     keccak256("Ballot(uint256 proposalId,bool support)");
 
-  constructor(address timelock_, address life_) public {
+  bool private initialized;
+
+  function initialize(address timelock_, address life_) public {
+    require(!initialized, "Contract instance has already been initialized");
+    initialized = true;
     timelock = TimelockInterface(timelock_);
     life = LIFEInterface(life_);
     guardian = msg.sender;
     admin = msg.sender;
+
+    quorumPercent = 400; // 4% by default
+    approvePercent = 100; // 1% voting power
+    votingDelay = 1; // 1 block
+    votingPeriod = 17280; // ~3 days in blocks (assuming 15s blocks)
+    approvalPeriod = 5760; // ~1 day in blocks (assuming 15s blocks)
+  }
+
+  modifier isInitialized() {
+    require(initialized, "can only be called after initialization");
+    _;
+  }
+
+  /// @notice The maximum number of actions that can be included in a proposal
+  function proposalMaxOperations() public pure returns (uint256) {
+    return 10;
+  } // 10 actions
+
+  /// @notice The number of votes in support of a proposal required in order for a quorum to be reached and for a vote to succeed
+  function quorumVotes() public view isInitialized returns (uint256) {
+    uint256 minimumVotes = SafeMath.div(life.currentSupply(), 10000); // Quorum requirement is always a multiple of 0.01% of LIFE supply
+    return SafeMath.mul(minimumVotes, quorumPercent);
+  }
+
+  /// @notice The number of votes required in order for a voter to approve a proposal
+  function approveVotes() public view isInitialized returns (uint256) {
+    uint256 minimumVotes = SafeMath.div(life.currentSupply(), 10000); // Approval requirement is always a multiple of 0.01% of LIFE supply
+    return SafeMath.mul(minimumVotes, approvePercent);
+  }
+
+  /// @notice The number of Tokens required in order for a voter to create a proposal
+  function createVotes() public pure returns (uint256) {
+    return 9000;
   }
 
   function propose(
@@ -255,7 +270,7 @@ contract DEVITAGovernor is GovernorStorage, GovernorEvents {
     string[] memory signatures,
     bytes[] memory calldatas,
     string memory description
-  ) public returns (uint256) {
+  ) public isInitialized returns (uint256) {
     require(
       life.balanceOf(msg.sender) >= createVotes(),
       "POWERLEVEL UNDER 9000!!! Proposer balance below create threshold"
@@ -329,7 +344,7 @@ contract DEVITAGovernor is GovernorStorage, GovernorEvents {
     return newProposal.id;
   }
 
-  function approve(uint256 proposalId) public {
+  function approve(uint256 proposalId) public isInitialized {
     require(
       state(proposalId) == ProposalState.Created,
       "DEVITAGovernor::add: proposal already approved or expired"
@@ -349,7 +364,7 @@ contract DEVITAGovernor is GovernorStorage, GovernorEvents {
     emit ProposalApproved(proposal.id, msg.sender, startBlock, endBlock);
   }
 
-  function queue(uint256 proposalId) public {
+  function queue(uint256 proposalId) public isInitialized {
     require(
       state(proposalId) == ProposalState.Succeeded,
       "DEVITAGovernor::queue: proposal can only be queued if it is succeeded"
@@ -386,7 +401,7 @@ contract DEVITAGovernor is GovernorStorage, GovernorEvents {
     timelock.queueTransaction(target, value, signature, data, eta);
   }
 
-  function execute(uint256 proposalId) public payable {
+  function execute(uint256 proposalId) public payable isInitialized {
     require(
       state(proposalId) == ProposalState.Queued,
       "DEVITAGovernor::execute: proposal can only be executed if it is queued"
@@ -405,7 +420,7 @@ contract DEVITAGovernor is GovernorStorage, GovernorEvents {
     emit ProposalExecuted(proposalId, msg.sender);
   }
 
-  function cancel(uint256 proposalId) public {
+  function cancel(uint256 proposalId) public isInitialized {
     ProposalState state = state(proposalId);
     require(
       state != ProposalState.Executed,
@@ -456,7 +471,12 @@ contract DEVITAGovernor is GovernorStorage, GovernorEvents {
     return proposals[proposalId].receipts[voter];
   }
 
-  function state(uint256 proposalId) public view returns (ProposalState) {
+  function state(uint256 proposalId)
+    public
+    view
+    isInitialized
+    returns (ProposalState)
+  {
     require(
       proposalCount >= proposalId && proposalId > 0,
       "DEVITAGovernor::state: invalid proposal id"
@@ -493,7 +513,7 @@ contract DEVITAGovernor is GovernorStorage, GovernorEvents {
     }
   }
 
-  function castVote(uint256 proposalId, bool support) public {
+  function castVote(uint256 proposalId, bool support) public isInitialized {
     return _castVote(msg.sender, proposalId, support);
   }
 
@@ -531,7 +551,7 @@ contract DEVITAGovernor is GovernorStorage, GovernorEvents {
    * @notice Admin function for setting the voting delay
    * @param newVotingDelay new voting delay, in blocks
    */
-  function _setVotingDelay(uint256 newVotingDelay) external {
+  function _setVotingDelay(uint256 newVotingDelay) external isInitialized {
     require(msg.sender == admin, "DEVITAGovernor::_setVotingDelay: admin only");
     require(
       newVotingDelay >= MIN_VOTING_DELAY && newVotingDelay <= MAX_VOTING_DELAY,
@@ -547,7 +567,7 @@ contract DEVITAGovernor is GovernorStorage, GovernorEvents {
    * @notice Admin function for setting the voting period
    * @param newVotingPeriod new voting period, in blocks
    */
-  function _setVotingPeriod(uint256 newVotingPeriod) external {
+  function _setVotingPeriod(uint256 newVotingPeriod) external isInitialized {
     require(
       msg.sender == admin,
       "DEVITAGovernor::_setVotingPeriod: admin only"
@@ -568,7 +588,10 @@ contract DEVITAGovernor is GovernorStorage, GovernorEvents {
    * @dev newApprovePercent must be greater than the hardcoded min
    * @param newApprovePercent new approve threshold
    */
-  function _setApprovePercent(uint256 newApprovePercent) external {
+  function _setApprovePercent(uint256 newApprovePercent)
+    external
+    isInitialized
+  {
     require(
       msg.sender == admin,
       "DEVITAGovernor::_setProposalThreshold: admin only"
@@ -589,7 +612,7 @@ contract DEVITAGovernor is GovernorStorage, GovernorEvents {
    * @dev newQuorum must be greater than the hardcoded min
    * @param newQuorum new quorum threshold
    */
-  function _setQuorumPercent(uint256 newQuorum) public {
+  function _setQuorumPercent(uint256 newQuorum) public isInitialized {
     require(
       msg.sender == admin,
       "DEVITAGovernor::_setQuorumPercent admin only"
@@ -609,7 +632,7 @@ contract DEVITAGovernor is GovernorStorage, GovernorEvents {
    * @dev Admin function to begin change of admin. The newPendingAdmin must call `_acceptAdmin` to finalize the transfer.
    * @param newPendingAdmin New pending admin.
    */
-  function _setPendingAdmin(address newPendingAdmin) external {
+  function _setPendingAdmin(address newPendingAdmin) external isInitialized {
     // Check caller = admin
     require(msg.sender == admin, "DEVITAGovernor:_setPendingAdmin: admin only");
 
@@ -627,7 +650,7 @@ contract DEVITAGovernor is GovernorStorage, GovernorEvents {
    * @notice Accepts transfer of admin rights. msg.sender must be pendingAdmin
    * @dev Admin function for pending admin to accept role and update admin
    */
-  function _acceptAdmin() external {
+  function _acceptAdmin() external isInitialized {
     // Check caller is pendingAdmin and pendingAdmin ≠ address(0)
     require(
       msg.sender == pendingAdmin && msg.sender != address(0),
@@ -648,7 +671,7 @@ contract DEVITAGovernor is GovernorStorage, GovernorEvents {
     emit NewPendingAdmin(oldPendingAdmin, pendingAdmin);
   }
 
-  function _acceptTimelockAdmin() public {
+  function _acceptTimelockAdmin() public isInitialized {
     require(
       msg.sender == guardian,
       "DEVITAGovernor::_acceptTimelockAdmin: sender must be gov guardian"
@@ -656,7 +679,7 @@ contract DEVITAGovernor is GovernorStorage, GovernorEvents {
     timelock.acceptAdmin();
   }
 
-  function __abdicate() public {
+  function __abdicate() public isInitialized {
     require(
       msg.sender == guardian,
       "DEVITAGovernor::__abdicate: sender must be gov guardian"
@@ -666,6 +689,7 @@ contract DEVITAGovernor is GovernorStorage, GovernorEvents {
 
   function __queueSetTimelockPendingAdmin(address newPendingAdmin, uint256 eta)
     public
+    isInitialized
   {
     require(
       msg.sender == guardian,
@@ -683,7 +707,7 @@ contract DEVITAGovernor is GovernorStorage, GovernorEvents {
   function __executeSetTimelockPendingAdmin(
     address newPendingAdmin,
     uint256 eta
-  ) public {
+  ) public isInitialized {
     require(
       msg.sender == guardian,
       "DEVITAGovernor::__executeSetTimelockPendingAdmin: sender must be gov guardian"

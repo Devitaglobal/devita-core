@@ -27,12 +27,12 @@ async function main() {
 
   // deploy GovernorAlpha.sol
   const GovernorAlpha = await hre.ethers.getContractFactory("DEVITAGovernor");
-  const governorAlpha = await GovernorAlpha.deploy(
+  const governorAlpha = await hre.upgrades.deployProxy(GovernorAlpha, [
     timeLock.address,
-    life.address
-  );
+    life.address,
+  ]);
   await governorAlpha.deployed();
-  console.log("DEVITAGovernor deployed to:", governorAlpha.address);
+  console.log("DEVITAGovernor proxy deployed to:", governorAlpha.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere

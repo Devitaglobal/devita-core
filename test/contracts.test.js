@@ -9,7 +9,6 @@ describe("GovernorAlpha", () => {
   let Timelock;
   let timelock;
   let accounts;
-  let mintTx;
   let proposeTx;
   let lastTrx;
   let latestProposalId;
@@ -28,7 +27,7 @@ describe("GovernorAlpha", () => {
     Executed: 8,
   };
 
-  const beforeEachSetUp = async () => {
+  beforeEach(async function () {
     accounts = await ethers.getSigners();
     ownerAccount = accounts[0];
     userAccounts = accounts.slice(1, 14);
@@ -39,7 +38,7 @@ describe("GovernorAlpha", () => {
     await life.deployed();
 
     // initialize life token
-    initTx = await life[
+    let initTx = await life[
       "initialize(string,string,uint8,address,uint256,uint256)"
     ](
       "LIFE Token",
@@ -56,15 +55,17 @@ describe("GovernorAlpha", () => {
     timelock = await Timelock.deploy();
     await timelock.deployed();
 
+    //deploy gov alpha
     GovAlpha = await ethers.getContractFactory("DEVITAGovernor");
-    govAlpha = await GovAlpha.deploy(timelock.address, life.address);
+    govAlpha = await GovAlpha.deploy();
     await govAlpha.deployed();
+    await govAlpha.initialize(timelock.address, life.address);
 
     votingPeriod = await govAlpha.votingPeriod();
     approvalPeriod = await govAlpha.approvalPeriod();
 
     // mint life tokens
-    mintTx = await life.mint(
+    let mintTx = await life.mint(
       ownerAccount.address,
       ethers.utils.parseEther("1000000")
     );
@@ -75,33 +76,90 @@ describe("GovernorAlpha", () => {
       ethers.utils.parseEther("1000000000")
     );
     await mintTx2.wait();
+  });
 
-    return {
-      GovAlpha,
-      govAlpha,
-      LIFE,
-      life,
-      Timelock,
-      timelock,
-      accounts,
-      mintTx,
-    };
-  };
+  describe("GovernorAlpha initialization", function () {
+    it("Check if initialize function sets variables", async function () {
+      expect(await govAlpha.timelock()).to.be.equal(timelock.address);
+      expect(await govAlpha.life()).to.be.equal(life.address);
+      expect(await govAlpha.guardian()).to.be.equal(ownerAccount.address);
+      expect(await govAlpha.admin()).to.be.equal(ownerAccount.address);
 
-  describe("GovernorAlpha Propose!", function () {
-    beforeEach(async function () {
-      ({
-        GovAlpha,
-        govAlpha,
-        LIFE,
-        life,
-        Timelock,
-        timelock,
-        accounts,
-        mintTx,
-      } = await beforeEachSetUp());
+      expect(await govAlpha.quorumPercent()).to.be.equal(400);
+      expect(await govAlpha.approvePercent()).to.be.equal(100);
+      expect(await govAlpha.votingDelay()).to.be.equal(1);
+      expect(await govAlpha.votingPeriod()).to.be.equal(17280);
+      expect(await govAlpha.approvalPeriod()).to.be.equal(5760);
     });
 
+    it("Check if initialize function reverts on second call", async function () {
+      await expect(
+        govAlpha.initialize(timelock.address, life.address)
+      ).to.be.revertedWith("Contract instance has already been initialized");
+    });
+
+    it("reverts other functions if initialize function isn't called", async function () {
+      let govAlpha2 = await GovAlpha.deploy();
+      await govAlpha2.deployed();
+
+      await expect(govAlpha2.quorumVotes()).to.be.revertedWith(
+        "can only be called after initialization"
+      );
+      await expect(govAlpha2.approveVotes()).to.be.revertedWith(
+        "can only be called after initialization"
+      );
+      await expect(govAlpha2.propose([], [], [], [], "")).to.be.revertedWith(
+        "can only be called after initialization"
+      );
+      await expect(govAlpha2.approve(5)).to.be.revertedWith(
+        "can only be called after initialization"
+      );
+      await expect(govAlpha2.queue(5)).to.be.revertedWith(
+        "can only be called after initialization"
+      );
+      await expect(govAlpha2.execute(5)).to.be.revertedWith(
+        "can only be called after initialization"
+      );
+      await expect(govAlpha2.cancel(5)).to.be.revertedWith(
+        "can only be called after initialization"
+      );
+      await expect(govAlpha2.state(5)).to.be.revertedWith(
+        "can only be called after initialization"
+      );
+      await expect(govAlpha2.castVote(5, true)).to.be.revertedWith(
+        "can only be called after initialization"
+      );
+      await expect(govAlpha2._setVotingDelay(5)).to.be.revertedWith(
+        "can only be called after initialization"
+      );
+      await expect(govAlpha2._setVotingPeriod(5)).to.be.revertedWith(
+        "can only be called after initialization"
+      );
+      await expect(govAlpha2._setApprovePercent(5)).to.be.revertedWith(
+        "can only be called after initialization"
+      );
+      await expect(govAlpha2._setQuorumPercent(5)).to.be.revertedWith(
+        "can only be called after initialization"
+      );
+      await expect(
+        govAlpha2._setPendingAdmin(userAccounts[3].address)
+      ).to.be.revertedWith("can only be called after initialization");
+      await expect(govAlpha2._acceptAdmin()).to.be.revertedWith(
+        "can only be called after initialization"
+      );
+      await expect(govAlpha2.__abdicate()).to.be.revertedWith(
+        "can only be called after initialization"
+      );
+      await expect(
+        govAlpha2.__queueSetTimelockPendingAdmin(userAccounts[3].address, 2)
+      ).to.be.revertedWith("can only be called after initialization");
+      await expect(
+        govAlpha2.__executeSetTimelockPendingAdmin(userAccounts[3].address, 2)
+      ).to.be.revertedWith("can only be called after initialization");
+    });
+  });
+
+  describe("GovernorAlpha Propose!", function () {
     it("Check if initialized properly", async function () {
       // make sure balance has been minted properly
       let balanceOwner = await life.balanceOf(ownerAccount.address);
@@ -239,17 +297,6 @@ describe("GovernorAlpha", () => {
 
   describe("GovernorAlpha Approve!", function () {
     beforeEach(async function () {
-      ({
-        GovAlpha,
-        govAlpha,
-        LIFE,
-        life,
-        Timelock,
-        timelock,
-        accounts,
-        mintTx,
-      } = await beforeEachSetUp());
-
       const setAdminTx = await timelock
         .connect(ownerAccount)
         .setPendingAdmin(govAlpha.address);
@@ -380,17 +427,6 @@ describe("GovernorAlpha", () => {
 
   describe("GovernorAlpha Queue!", function () {
     beforeEach(async function () {
-      ({
-        GovAlpha,
-        govAlpha,
-        LIFE,
-        life,
-        Timelock,
-        timelock,
-        accounts,
-        mintTx,
-      } = await beforeEachSetUp());
-
       const setAdminTx = await timelock
         .connect(ownerAccount)
         .setPendingAdmin(govAlpha.address);
@@ -538,17 +574,6 @@ describe("GovernorAlpha", () => {
 
   describe("GovernorAlpha Execute!", function () {
     beforeEach(async function () {
-      ({
-        GovAlpha,
-        govAlpha,
-        LIFE,
-        life,
-        Timelock,
-        timelock,
-        accounts,
-        mintTx,
-      } = await beforeEachSetUp());
-
       const setAdminTx = await timelock
         .connect(ownerAccount)
         .setPendingAdmin(govAlpha.address);
