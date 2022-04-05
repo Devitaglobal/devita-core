@@ -1,5 +1,6 @@
 require("@nomiclabs/hardhat-waffle");
 require("@nomiclabs/hardhat-etherscan");
+require("@openzeppelin/hardhat-upgrades");
 
 const data = require("./secrets.json");
 const INFURA_API_KEY = data.INFURA_API_KEY;
@@ -33,15 +34,6 @@ module.exports = {
       },
       {
         version: "0.5.5",
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 200,
-          },
-        },
-      },
-      {
-        version: "0.8.0",
         settings: {
           optimizer: {
             enabled: true,
