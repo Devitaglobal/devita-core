@@ -73,4 +73,7 @@ contract TokenStorage {
   bool public initialized = false;
 
   uint256 public currentSupply;
+
+  /// @notice Address of childChainManager
+  address public childChainManager;
 }

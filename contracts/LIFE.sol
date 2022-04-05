@@ -40,6 +40,14 @@ contract LIFEToken is GovernanceToken, Frozen {
     _;
   }
 
+  modifier depositorOnly() {
+    require(
+      msg.sender == childChainManager,
+      "Needs to be a depositor in order to preform this action"
+    );
+    _;
+  }
+
   function initialize(
     string memory name_,
     string memory symbol_,
@@ -63,6 +71,14 @@ contract LIFEToken is GovernanceToken, Frozen {
   function unpause() public onlyEmergency {
     _paused = false;
     emit Unpaused(msg.sender);
+  }
+
+  function getChainId() internal pure returns (uint256) {
+    uint256 chainId;
+    assembly {
+      chainId := chainid()
+    }
+    return chainId;
   }
 
   /**
@@ -118,6 +134,19 @@ contract LIFEToken is GovernanceToken, Frozen {
     _moveDelegates(_delegates[from], address(0), amount);
     emit Burn(from, amount);
     emit Transfer(from, address(0), amount);
+  }
+
+  /**
+   * @notice Mints amount tokens to the user from mainnet.
+   * @param user Reciever of tokens.
+   * @param depositData Amount of tokens the user should recieve stored in depositData.
+   */
+  function deposit(address user, bytes calldata depositData)
+    external
+    depositorOnly
+  {
+    uint256 amount = abi.decode(depositData, (uint256));
+    _mint(user, amount);
   }
 
   /* - ERC20 functionality - */
@@ -330,6 +359,7 @@ contract LIFE is LIFEToken {
    * @param name_ ERC-20 name of this token
    * @param symbol_ ERC-20 symbol of this token
    * @param decimals_ ERC-20 decimal precision of this token
+   * @param childChainManager_ Address of child chain manager.
    */
   function initialize(
     string memory name_,
@@ -337,7 +367,8 @@ contract LIFE is LIFEToken {
     uint8 decimals_,
     address initial_owner,
     uint256 initSupply_,
-    uint256 totalSupply_
+    uint256 totalSupply_,
+    address childChainManager_
   ) public {
     super.initialize(name_, symbol_, decimals_);
 
@@ -347,5 +378,6 @@ contract LIFE is LIFEToken {
     _balances[initial_owner] = currentSupply;
     gov = initial_owner;
     guardian = initial_owner;
+    childChainManager = childChainManager_;
   }
 }
