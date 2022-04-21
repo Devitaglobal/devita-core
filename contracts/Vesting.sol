@@ -40,8 +40,8 @@ contract Vesting {
   // This can be called by anyone and will distribute the tokens to benefactor, as long as Distribution is possible
   {
     require(initialized == true, "Vesting not initialized yet");
-    require(block.timestamp >= nextUnlock, "No tokens to distribute yet");
     require(currentCycle < totalCycles, "Distribution Completed");
+    require(block.timestamp >= nextUnlock, "No tokens to distribute yet");
     lastUnlock = nextUnlock;
     nextUnlock = nextUnlock.add(interval); // Allows backlogs of unlocked tokens to be distributed later for example, could distribute twice if waited for 2 months (given interval is 1 month)
     currentCycle = currentCycle.add(1);
