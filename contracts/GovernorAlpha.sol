@@ -261,7 +261,7 @@ contract DEVITAGovernor is GovernorStorage, GovernorEvents {
 
   /// @notice The number of Tokens required in order for a voter to create a proposal
   function createVotes() public pure returns (uint256) {
-    return 9000;
+    return (9000 * life.decimals());
   }
 
   function propose(
@@ -763,6 +763,6 @@ interface LIFEInterface {
     returns (uint256);
 
   function balanceOf(address account) external view returns (uint256);
-
+  function decimals() external view returns (uint256);
   function currentSupply() external view returns (uint256);
 }
