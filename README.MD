@@ -4,14 +4,20 @@ This repository contains the core smart contracts required for the operation of 
 
 ## What is DEVITA?
 
-DEVITA is a decentralized protocol that allows users access to Telehealth care services. Coupled with the decentralized health database enables wider-reaching access to healthcare and data management services to both urban and rural communities that would otherwise be unable to access health services. All that’s required is a device with internet connectivity.
+DEVITA is a multifaceted blockchain protocol designed to decentralize and transform data management and ownership across multiple industry verticals. Our mission is to pioneer a self-sovereign data world where users have complete control over their information.
 
-We also provide data sovereignty to the user, as all the health based data is only accessible by the user themselves, unless they explicit grant permission to another party, such as medical professionals, etc.
+Initially launched to address the crucial needs and unique challenges of the healthcare sector, DEVITA has successfully implemented a decentralized telehealth care service coupled with a robust health database. This solution offers unprecedented access to healthcare and data management services to communities worldwide, regardless of their location or infrastructure. The only requirement is a device with an internet connection.
+
+In our healthcare vertical, we emphasize user data sovereignty. All health-related data is exclusively accessible by the user unless they explicitly grant permission to another party, such as medical professionals.
+
+Recently, DEVITA has expanded its focus to the pet care industry, demonstrating our commitment to adaptability and cross-industry transformation. This venture is just one of many as we strive to enhance user experience, privacy, and access to services in a multitude of sectors.
+
+Regardless of the industry vertical, our philosophy remains consistent: we empower users with control over their data, while leveraging the blockchain's potential to broaden access to essential services. Our aim is to catalyze positive change and innovation across all sectors we touch.
 
 Before getting started with this repo, please read the The [DEVITA Whitepaper](https://drive.google.com/file/d/1YZrXPVj9nMX8IFTprXY7Q74kOAhWrXH3/view), describing how DEVITA works.
 
 ## Connect with the Community
-You can join at the [Telegram channel](https://t.me/DEVITAGlobal) for asking questions about the protocol or talk about DEVITA with other peers.
+You can join our [Telegram channel](https://t.me/DEVITAGlobal) for asking questions about the protocol or talk about DEVITA with other peers.
 
 ## Contracts
 
